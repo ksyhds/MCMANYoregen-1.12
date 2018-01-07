@@ -13,6 +13,7 @@ import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
@@ -27,12 +28,16 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
+import org.bukkit.material.MaterialData;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+
+import com.Moon_eclipse.EclipseLib.LibMain;
 
 public class OreGen extends JavaPlugin implements Listener{
 	Configuration c;
@@ -52,18 +57,25 @@ public class OreGen extends JavaPlugin implements Listener{
 	public void onEnable()
 	{
 		Bukkit.getPluginManager().registerEvents(this, this);
+		
 		this.saveDefaultConfig();
 		this.saveDefaultitem();
+		this.saveDefaultlocations();
+		
 		c = this.getConfig();
 		itemfile = new File(getDataFolder(), "item.yml");
 		item = YamlConfiguration.loadConfiguration(itemfile);
-		locationsFile = new File(getDataFolder(), "locations");
+		locationsFile = new File(getDataFolder(), "locations.yml");
 		locations = YamlConfiguration.loadConfiguration(locationsFile);
+		
+		// 광산으로 지정된 영역을 모두 돌로 초기화.
+		InitializeMine();
 	}
 	public void onDisable()
 	{
 		
 	}
+	
 	public boolean onCommand(CommandSender sender, Command command, String Label, String[] args)
 	{
 		if(command.getName().equals("광산") && sender.isOp())
@@ -77,7 +89,7 @@ public class OreGen extends JavaPlugin implements Listener{
 					sender.sendMessage("/광산 설정");
 					sender.sendMessage("/광산 생성 광산이름");
 					sender.sendMessage("/광산 삭제 광산이름");
-					
+					sender.sendMessage("/광산 초기화");
 				}
 			}
 			else if(args[0].equals("리로드"))
@@ -109,7 +121,7 @@ public class OreGen extends JavaPlugin implements Listener{
 							    String s2 = s.replaceAll("PLAYER", sender.getName());
 							    lore.set(i, s2);
 						    }
-						    ItemStack is = this.createItem(c.getInt(key + ".id"), c.getInt(key + ".metadata"), getamount, c.getString(key + ".name").replace("&", "§"), lore, c.getString(key + ".color"),  c.getStringList(key + ".enchants"));
+						    ItemStack is = LibMain.createItem(c.getInt(key + ".id"), c.getInt(key + ".metadata"), getamount, c.getString(key + ".name").replace("&", "§"), lore, c.getString(key + ".color"),  c.getStringList(key + ".enchants"));
 						    targetPlayer.getInventory().addItem(is);
 				    	}
 				    	else
@@ -136,7 +148,7 @@ public class OreGen extends JavaPlugin implements Listener{
 					if(GetLocation.get(p.getName()) == false)
 					{
 						GetLocation.put(sender.getName(), true);
-						sender.sendMessage("나무도끼를 집/땅 설정 용도로 변경합니다.");
+						sender.sendMessage("나무도끼를 광산 좌표 설정 용도로 변경합니다.");
 					}
 					else if(GetLocation.get(sender.getName()))
 					{
@@ -160,12 +172,14 @@ public class OreGen extends JavaPlugin implements Listener{
 						
 						String Pos1 = PlayerClickLeft.get(p.getName());
 						String Pos2 = PlayerClickRight.get(p.getName());
-						locations.set("locations" + args[1] + ".pos1", Pos1);
+						locations.set("locations." + args[1] + ".pos1", Pos1);
 						locations.set("locations." + args[1] + ".pos2", Pos2);
 						locations.set("locations." + args[1] + ".world", p.getWorld().getName());
 						this.savelocations();
 						
 						p.sendMessage("locations 파일에 " + args[1] + "항목이 생성 되었습니다.");
+						GetLocation.put(sender.getName(), false);
+						sender.sendMessage("나무도끼를 일반 용도로 변경합니다.");
 					}
 					else 
 					{
@@ -190,18 +204,47 @@ public class OreGen extends JavaPlugin implements Listener{
 					sender.sendMessage("인수가 모자랍니다.");
 				}
 			}
+			else if(args[0].equalsIgnoreCase("초기화"))
+			{
+				InitializeMine();
+				sender.sendMessage("광산 초기화 완료.");
+			}
 		}
 		return true;
 	}
+	
+	@EventHandler
+	public void onJoin(PlayerJoinEvent event)
+	{
+		
+		Player p = event.getPlayer();
+		String name = p.getName();
+		if(p.isOp())
+		{
+			PlayerClickLeft.put(name, "");
+			PlayerClickRight.put(name, "");
+			GetLocation.put(name, false);
+		}
+	}
+	
+	
 	@EventHandler(priority = EventPriority.MONITOR)
 	public void onBreakBlock(BlockBreakEvent event)
 	{
+		Player p = event.getPlayer();
+		
+		if(p.isOp() && GetLocation.get(p.getName()))
+		{
+			event.setCancelled(true);
+
+			p.sendMessage("현재 광산 편집 중 입니다. '/광산 설정' 커맨드를 통해서 편집 상태를 해제해 주세요.");
+		}
 		if(event.isCancelled() == false)
 		{
 			Location loc = event.getBlock().getLocation();
 			int getbreakblock = event.getBlock().getTypeId();
 			int getbreakmeta = event.getBlock().getData();
-			Player p = event.getPlayer();
+			
 			ItemStack hand = p.getItemInHand();
 			String worldname = p.getWorld().getName();
 			
@@ -213,6 +256,17 @@ public class OreGen extends JavaPlugin implements Listener{
 				// 이벤트가 발생한 장소가 광산인지 아닌지 판별.
 				if(IsThisMinePlace(loc)) 
 				{
+					if(!p.isOp())
+					{
+						int macroid = c.getInt("config.macro.id");
+						int blockid = event.getBlock().getTypeId();
+						
+						if(macroid == blockid)
+						{
+							String command = c.getString("config.macro.command");
+							Bukkit.dispatchCommand(p, command);
+						}
+					}
 					String key = "config." + worldname + ".";
 					List<String> replaceto = c.getStringList(key + getbreakblock + "*" + getbreakmeta + ".replaceto");
 					if(!(replaceto.isEmpty()) && !(replaceto.get(0).equals("")))
@@ -270,11 +324,12 @@ public class OreGen extends JavaPlugin implements Listener{
 							((ExperienceOrb)event.getBlock().getWorld().spawn(loc, ExperienceOrb.class)).setExperience(dropexp);
 							Bukkit.getWorld(worldname).dropItemNaturally(loc, dropitem);
 							Bukkit.getWorld(worldname).getBlockAt(loc).setTypeIdAndData(0, (byte)0, true);
-							Bukkit.getServer().getScheduler().scheduleAsyncDelayedTask(this, new Runnable()
+							Bukkit.getServer().getScheduler().runTaskLater(this, new Runnable()
 							{
+								@SuppressWarnings("deprecation")
 								public void run()
 								{
-									Bukkit.getWorld(worldname).getBlockAt(loc).setTypeIdAndData(replaceid, (byte)replacemeta, true);
+									Bukkit.getWorld(worldname).getBlockAt(loc).setTypeIdAndData(replaceid, (byte)replacemeta, false);
 								}
 							}, delay);
 							
@@ -336,6 +391,21 @@ public class OreGen extends JavaPlugin implements Listener{
 				
 			}
 		}
+		
+		if(event.getAction().equals(Action.RIGHT_CLICK_BLOCK))
+		{
+			Location loc = event.getClickedBlock().getLocation();
+			if(IsThisMinePlace(loc))
+			{
+				int blockid = event.getClickedBlock().getTypeId();
+				int macroid = c.getInt("config.macro.id");
+				if(macroid == blockid)
+				{
+					p.getWorld().getBlockAt(loc).setTypeIdAndData(1, (byte)0, false);
+				}
+			}
+		}
+		
 	}
 	public ItemStack createItem(int typeId, int amount, String name, List<String> lore, int meta, List<String> enchants)
 	{
@@ -561,35 +631,6 @@ public class OreGen extends JavaPlugin implements Listener{
 		}
 		return b;
 	}
-	public ItemStack createItem(int typeId,int metadata,  int amount, String name, List<String> lore, String color, List<String> enchants)
-	{
-		ItemStack i = new ItemStack(typeId, 1,(short) 0,(byte) metadata);
-		ItemMeta im = i.getItemMeta();
-		String ColorHex = color;
-		try
-		{
-			if(typeId == 298 || typeId == 299 || typeId == 300 || typeId == 301)
-			{
-				LeatherArmorMeta im2 = (LeatherArmorMeta) im;
-				im2.setColor(Color.fromRGB(Integer.parseInt(ColorHex, 16)));
-			}
-		}catch(Exception e){}
-		im.setDisplayName(name);
-		im.setLore(lore);
-		i.setItemMeta(im);
-		Random rnd = new Random();
-		if(!(enchants.isEmpty()))
-		{
-			for(String enchant : enchants)
-			{
-				//'16: 1'
-				int enchantname = Integer.parseInt(enchant.substring(0, enchant.length() - 3));
-				int level = Integer.parseInt(enchant.substring(enchant.length() - 1));
-				i.addUnsafeEnchantment(Enchantment.getById(enchantname), level);
-			}
-		}
-		return i;
-	}
 	public boolean IsThisMinePlace(Location BlockLocation)
 	{
 		boolean return_b = false;
@@ -598,62 +639,40 @@ public class OreGen extends JavaPlugin implements Listener{
 		
 		
 		Set<String> keys = locations.getConfigurationSection("locations").getKeys(false);
-		
-		for(String key : keys) 
+		if(keys.size() >= 1)
 		{
-			pos1 = locations.getString("locations." + key + ".pos1");
-			pos2 = locations.getString("locations." + key + ".pos2");
-			
-			if(IsWithin(BlockLocation, pos1, pos2)) 
+			for(String key : keys) 
 			{
-				return_b = true;
-				break;
-			}
-		}
-		
-		return return_b;
-	}
-	public boolean IsWithin(Location BlockLocation, String position1, String position2)
-	{
-		boolean b = false;
-		int xp,yp,zp,x1,y1,z1,x2,y2,z2;
-		xp = (int) BlockLocation.getX();
-		yp = (int) BlockLocation.getY();
-		zp = (int) BlockLocation.getZ();
-		String[] split1 = position1.split(",");
-		String[] split2 = position2.split(",");
-		x1 = Integer.parseInt(split1[0]);
-		y1 = Integer.parseInt(split1[1]);
-		z1 = Integer.parseInt(split1[2]);
-		x2 = Integer.parseInt(split2[0]);
-		y2 = Integer.parseInt(split2[1]);
-		z2 = Integer.parseInt(split2[2]);
-		
-		if((xp >= x1 && xp <= x2) || (xp >= x2 && xp <= x1))
-		{
-			if((yp >= y1 && yp <= y2) || (yp >= y2 && yp <= y1))
-			{
-				if((zp >= z1 && zp <= z2) || (zp >= z2 && zp <= z1))
+				pos1 = locations.getString("locations." + key + ".pos1");
+				pos2 = locations.getString("locations." + key + ".pos2");
+				
+				if(LibMain.IsWithin(BlockLocation, pos1, pos2)) 
 				{
-					b = true;
+					return_b = true;
+					break;
 				}
 			}
 		}
+
 		
-		return b;
+		return return_b;
 	}
+
 	public void InitializeMine() 
 	{
 		String pos1 = "";
 		String pos2 = "";
-		int xp,yp,zp,x1,y1,z1,x2,y2,z2,temp=0;
+		String worldname = "";
+		int x1,y1,z1,x2,y2,z2,temp=0;
 		
 		Set<String> keys = locations.getConfigurationSection("locations").getKeys(false);
 		
 		for(String key : keys) 
 		{
+			
 			pos1 = locations.getString("locations." + key + ".pos1");
 			pos2 = locations.getString("locations." + key + ".pos2");
+			worldname = locations.getString("locations." + key + ".world");
 			
 			String[] split1 = pos1.split(",");
 			String[] split2 = pos2.split(",");
@@ -682,13 +701,14 @@ public class OreGen extends JavaPlugin implements Listener{
 				z1 = z2;
 				z2 = temp;
 			}
-			for(int x = x1 ; x > x2 ; x++)
+			for(int x = x1 ; x <= x2 ; x++)
 			{
-				for() 
+				for(int y = y1 ; y <= y2 ; y++) 
 				{
-					for() 
+					for(int z = z1 ; z <= z2 ; z++) 
 					{
-						
+						Location newloc = new Location(Bukkit.getWorld(worldname), (double)x, (double)y, (double)z);
+						Bukkit.getWorld(worldname).getBlockAt(newloc).setTypeIdAndData(1, (byte)0, true);
 					}
 				}
 			}

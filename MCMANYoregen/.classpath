@@ -2,6 +2,7 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
-	<classpathentry kind="lib" path="D:/Eclipse/BUKKIT API/spigot-api-1.12.1-R0.1-SNAPSHOT-shaded.jar"/>
+	<classpathentry kind="lib" path="D:/eclipse/BUKKIT API/spigot-api-1.12.1-R0.1-SNAPSHOT-shaded.jar"/>
+	<classpathentry kind="lib" path="D:/eclipse/Other Minecraft Plugins/1.11/EclipseLib.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
