@@ -32,8 +32,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import com.gmail.nossr50.api.ExperienceAPI;
-
 public class OreGen extends JavaPlugin implements Listener{
 	Configuration c;
 	private FileConfiguration item;
@@ -140,10 +138,6 @@ public class OreGen extends JavaPlugin implements Listener{
 					int dropexp = c.getInt(key + ".dropexp");
 					event.setExpToDrop(dropexp);
 					
-					if(c.getString("config.UseMCMMO").equalsIgnoreCase("true"))
-					{
-						ExperienceAPI.addXP(p, "Mining", c.getInt(key + ".mmoxp"));
-					}
 					if(!(potion.isEmpty()) && !(potion.get(0).equals("")))
 					{
 						for(String po : potion)
