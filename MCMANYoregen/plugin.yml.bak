@@ -1,0 +1,8 @@
+name: MCMANYOreGen
+main: com.Moon_Eclipse.MCMANYOreGen.OreGen
+version: 1.0 [05.08]
+author: Moon_Eclipse(MCMANY Mincraft Manyserver)
+
+commands:
+  광산:
+    description: /광산 리로드
