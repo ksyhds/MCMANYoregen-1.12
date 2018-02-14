@@ -20,6 +20,7 @@ import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.ExperienceOrb;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -27,6 +28,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockExpEvent;
+import org.bukkit.event.entity.EntitySpawnEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
@@ -37,6 +40,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
+import com.Moon_Eclipse.MCgive.main;
 import com.Moon_eclipse.EclipseLib.LibMain;
 
 public class OreGen extends JavaPlugin implements Listener{
@@ -46,11 +50,14 @@ public class OreGen extends JavaPlugin implements Listener{
 	HashMap<String, String> PlayerClickRight = new HashMap<String, String>();
 	HashMap<String, Boolean> GetLocation = new HashMap<String, Boolean>();
 	
-	private FileConfiguration item;
-	private File itemfile;
+	private FileConfiguration OreGroups;
+	private File OreGroupsfile;
 	
 	private FileConfiguration locations;
 	private File locationsFile;
+	
+	private FileConfiguration items;
+	private File itemsFile;
 	
 	Random rnd = new Random();
 	
@@ -59,14 +66,17 @@ public class OreGen extends JavaPlugin implements Listener{
 		Bukkit.getPluginManager().registerEvents(this, this);
 		
 		this.saveDefaultConfig();
-		this.saveDefaultitem();
+		this.saveDefaultOreGroups();
 		this.saveDefaultlocations();
+		this.saveDefaultitems();
 		
 		c = this.getConfig();
-		itemfile = new File(getDataFolder(), "item.yml");
-		item = YamlConfiguration.loadConfiguration(itemfile);
+		OreGroupsfile = new File(getDataFolder(), "OreGroups.yml");
+		OreGroups = YamlConfiguration.loadConfiguration(OreGroupsfile);
 		locationsFile = new File(getDataFolder(), "locations.yml");
 		locations = YamlConfiguration.loadConfiguration(locationsFile);
+		itemsFile = new File(getDataFolder(), "items.yml");
+		items = YamlConfiguration.loadConfiguration(itemsFile);
 		
 		// 광산으로 지정된 영역을 모두 돌로 초기화.
 		InitializeMine();
@@ -87,7 +97,7 @@ public class OreGen extends JavaPlugin implements Listener{
 					sender.sendMessage("/광산 reload");
 					sender.sendMessage("/광산 받기 플레이어이름 아이템이름 갯수");
 					sender.sendMessage("/광산 설정");
-					sender.sendMessage("/광산 생성 광산이름");
+					sender.sendMessage("/광산 생성 광산이름 그룹이름");
 					sender.sendMessage("/광산 삭제 광산이름");
 					sender.sendMessage("/광산 초기화");
 				}
@@ -96,8 +106,16 @@ public class OreGen extends JavaPlugin implements Listener{
 			{
 				this.reloadConfig();
 				c = this.getConfig();
-				itemfile = new File(getDataFolder(), "item.yml");
-				item = YamlConfiguration.loadConfiguration(itemfile);
+				
+				OreGroupsfile = new File(getDataFolder(), "item.yml");
+				OreGroups = YamlConfiguration.loadConfiguration(OreGroupsfile);
+				
+				locationsFile = new File(getDataFolder(), "locations.yml");
+				locations = YamlConfiguration.loadConfiguration(locationsFile);
+				
+				itemsFile = new File(getDataFolder(), "items.yml");
+				items = YamlConfiguration.loadConfiguration(itemsFile);
+				
 				sender.sendMessage("MCMANYOreGen 리로드 완료.");
 			}
 			else if (args[0].equals("받기"))
@@ -114,7 +132,7 @@ public class OreGen extends JavaPlugin implements Listener{
 				    	if(targetPlayer.isOnline())
 				    	{
 				    		String key = "item." + itemname;
-						    List<String> lore = item.getStringList(key + ".lore");
+						    List<String> lore = items.getStringList(key + ".lore");
 						    for (int i = 0; i < lore.size(); i++)
 						    {
 							    String s = lore.get(i).replace("&", "§");
@@ -142,9 +160,13 @@ public class OreGen extends JavaPlugin implements Listener{
 			// 광산 설정
 			else if (args[0].equals("설정"))
 			{
+				// 만약 커맨드 사용자가 플레이어라면
 				if(sender instanceof Player) 
 				{
+					// 커맨드 사용자를 플레이어로 치환하여 저장
 					Player p = (Player) sender;
+					
+					// 플레이어가 나무도끼로 광산 설정 상태가 아니라면
 					if(GetLocation.get(p.getName()) == false)
 					{
 						GetLocation.put(sender.getName(), true);
@@ -162,22 +184,44 @@ public class OreGen extends JavaPlugin implements Listener{
 				}
 				
 			}
+			// 광산 생성 그룹이름
+			// 만약 커맨드의 속성 0 번째가 생성 이라면
 			else if(args[0].equalsIgnoreCase("생성"))
 			{
+				// 만약 커맨드 사용자가 플레이어라면
 				if(sender instanceof Player) 
 				{
+					// 커맨드 사용자를 플레이어로 치환하여 저장
 					Player p = (Player) sender;
-					if(args.length > 1) 
+					
+					// 커맨드의 길이가 1보다 크다면
+					if(args.length > 2) 
 					{
-						
+						// pos1을 플레이어가 왼쪽 클릭한 곳으로 정함
 						String Pos1 = PlayerClickLeft.get(p.getName());
+						
+						// pos2를 플레이어가 오른쪽 클릭한 곳으로 저장함
 						String Pos2 = PlayerClickRight.get(p.getName());
+						
+						// args[1]을 그룹이름으로써 사용하기위해 변수에 저장
+						String Group_Name = args[2];
+						
+						// locations.yml의 항목에 각 값을 저장함.
 						locations.set("locations." + args[1] + ".pos1", Pos1);
 						locations.set("locations." + args[1] + ".pos2", Pos2);
 						locations.set("locations." + args[1] + ".world", p.getWorld().getName());
+						locations.set("locations." + args[1] + ".group", Group_Name);
+						locations.set("locations." + args[1] + ".initial_ore", "Initial_Default");
+						
+						// locations 문서를 저장함
 						this.savelocations();
 						
-						p.sendMessage("locations 파일에 " + args[1] + "항목이 생성 되었습니다.");
+						// 
+						
+						// 플레이어에게 작업 내용을 전달
+						p.sendMessage("locations 파일에 " + args[1] + "항목이 생성 되었습니다. 그룹은 \'" + Group_Name + "\' 입니다.");
+						
+						// 설정 모드를 해제하기 위해 설정 변경
 						GetLocation.put(sender.getName(), false);
 						sender.sendMessage("나무도끼를 일반 용도로 변경합니다.");
 					}
@@ -232,7 +276,6 @@ public class OreGen extends JavaPlugin implements Listener{
 	public void onBreakBlock(BlockBreakEvent event)
 	{
 		Player p = event.getPlayer();
-		
 		if(p.isOp() && GetLocation.get(p.getName()))
 		{
 			event.setCancelled(true);
@@ -246,9 +289,226 @@ public class OreGen extends JavaPlugin implements Listener{
 			int getbreakmeta = event.getBlock().getData();
 			
 			ItemStack hand = p.getItemInHand();
-			String worldname = p.getWorld().getName();
 			
-			Set<String> worldlist = c.getConfigurationSection("config").getKeys(false);
+			// 처리 순서
+			// locations.yml 의 각 항목은 config에 등록되어있는 initial_blocks:@을 갖으며 부팅,커맨드 입력시 이것을 기준으로 초기화한다.
+			
+			// 블럭 브레이크
+			// 이벤트가 발생한 월드의 이름을 저장한다
+			String worldname = loc.getWorld().getName();
+			
+			// 블럭이 부숴진곳이 광산이라면 광산의 이름을 얻어옴
+			String Break_Region = IsThisMinePlace_AndWhere(loc);
+			
+			//Bukkit.broadcastMessage("Break_Region: " + Break_Region);
+			
+			// 만약 해당 장소가 광산이라면
+			if(!Break_Region.equals(""))
+			{
+				// 영역의 광산그룹을 얻어옴			
+				String OreGroup = locations.getString("locations." + Break_Region + ".group");
+				//Bukkit.broadcastMessage("OreGroup: " + OreGroup);
+				
+				//작성되어있는 아이템중 드랍 아이템을 확률적으로 얻는다.
+				String OreGroups_key = "OreGroups." + OreGroup + ".";
+				
+				//부숴진 블럭을 대체할 블럭이 지정되어있는지 확인.
+				List<String> replaceto = OreGroups.getStringList(OreGroups_key + getbreakblock + "*" + getbreakmeta + ".replaceto");
+				
+				//만약 대체 블럭이 존재하는 경우
+				if(!(replaceto.isEmpty()) && !(replaceto.get(0).equals("")))
+				{
+					
+					//------------------------------------ 아래는 데이터 초기화 부분
+					
+					// 여러개의 대체 블럭중 어느것으로 대체될지 얻어옴
+					int rnd_per = rnd.nextInt((100) + 1);
+					int[] replaceitem = this.replaceint(replaceto, rnd_per);
+					int replaceid = replaceitem[0];
+					int replacemeta = replaceitem[1];
+					
+					// 항목을 불러들이기 위한 key 값을 변경
+					String key = OreGroups_key + getbreakblock + "*" + getbreakmeta;
+					
+					// 블럭이 재 생성될 시간을 불러옴
+					long delay = OreGroups.getLong(key + ".delay");
+					
+					// 포션 이펙트들을 얻어옴
+					List<String> potion = OreGroups.getStringList(key + ".potion");
+					
+					// 블럭이 부숴졌을 경우 실행될 커맨드들을 불러옴
+					List<String> commands = OreGroups.getStringList(key + ".commands");
+					
+					// 드랍될 아이템들을 불러옴
+					List<String> drop_itemMeta = OreGroups.getStringList(key + ".drop_itemMeta");
+					
+					// 드랍될 경험치를 불러옴
+					int dropexp = OreGroups.getInt(key + ".dropexp");	
+					
+					// 드랍될 아이템을 담아둘 버퍼를 생성
+					ItemStack dropitem = new ItemStack(0);
+					
+					//------------------------------------ 아래는 데이터 가공부분
+					
+					// 만약 포션이펙트의 데이터가 있다면
+					if(!(potion.isEmpty()) && !(potion.get(0).equals("")))
+					{
+						// 적혀있는 포션이펙트를 플레이어에게 적용
+						for(String po : potion)
+						{
+							int effectnumber = Integer.parseInt(po.substring(0, po.indexOf(",")));
+							int second = Integer.parseInt(po.substring(po.indexOf(":") +1, po.length()));
+							int level = Integer.parseInt(po.substring(po.indexOf(",") +2, po.indexOf(":")));
+							p.addPotionEffect(new PotionEffect(this.int2PotionEffect(effectnumber), second * 20, level));
+						}
+					}
+					
+					// 만약 커맨드의 데이터가 있다면
+					if(!(commands.isEmpty()) && !(commands.get(0).equals("")))
+					{
+						// 적혀있는 모든 커맨드를 콘솔 권한으로 실행
+						for(String co : commands)
+						{
+							String colorcommand = co.replace("&", "§");
+							String finalcommand = colorcommand.replaceAll("PLAYER", p.getName());
+							Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalcommand);
+						}
+					}
+					
+					// 만약 드랍 아이템이 있다면
+					if(!(drop_itemMeta.isEmpty()) && !(drop_itemMeta.get(0).equals("")))
+					{
+						// 드랍될 퍼센트를 정하기위해 랜덤 변수를 선
+						int drop_per = rnd.nextInt((100) + 1);
+						
+						// 아이템리스트 중에서 드랍될 아이템 이름을 얻어옴.
+						String dropitemname = this.dropitem(drop_itemMeta, drop_per);
+						//Bukkit.broadcastMessage("dropitemname: " + dropitemname);
+						
+						// 아이템이름을 사용해 드랍될 아이템의 경로를 정함.
+						key = "items." + dropitemname;
+						
+						// 아이템 갯수를 얻어옴
+						int amount = items.getInt(key + ".amount");
+						
+						// 아이템 이름을 얻어옴. 만약 mcgive에서 아이템을 갖고 오는 경우 이것이 mcgive 항목 이름이 됨
+						String name = items.getString(key + ".name");
+						
+						// mcgive의 아이템을 얻어올 것인지 여부를 얻어옴
+						boolean getMCgive = items.getBoolean(key + "getMCgive");
+						//Bukkit.broadcastMessage("getMCgive: " + getMCgive);
+						
+						//만약 mcgive 아이템을 얻어오는 것이라면
+						if(getMCgive)
+						{
+							// 드랍 아이템을 mcgive에서 얻어옴
+							dropitem = main.get_Mcgive_Item("", name, amount);
+						}
+						// mcgive 아이템을 얻어오는것이 아니라면
+						else
+						{							
+							// 아이템 id를 얻어옴
+							int id = items.getInt(key + ".id");
+							
+							// 아이템 data를 얻어옴. 5:3 의 3부분
+							int meta = items.getInt(key + ".metadata");
+
+							
+							// 아이템 로어의 목록을 얻어옴
+							List<String> lore = items.getStringList(key + ".lore");
+							
+							// 아이템 인챈트 목록을 얻어옴
+							List<String> enchants = items.getStringList(key + ".enchants");
+													
+							// 플레이스 홀더의 역할을 위해서 PLAYER를 실제 플레이어 이름으로 바꿈
+							lore = LibMain.ChangeString("PLAYER", p.getName(), lore);
+							
+							// 드랍 아이템의 각 데이터를 기반으로 itemstack을 생성함
+							dropitem = this.createItem(id, amount, name, lore, meta, enchants);	
+							
+						}
+						
+						// EclipseLib을 이용해서 아이템의 내구도를 무한으로 만듬.
+						//Bukkit.broadcastMessage("dropitem: " + dropitem.toString());
+						dropitem = LibMain.hideFlags_Unbreak(dropitem);
+						
+						//일반 아이템이 드랍되지 않게 하기위해 이벤트를 취소
+						event.setCancelled(true);
+						
+						// 만약 드랍시킬 exp가 0이 아니라면
+						if(dropexp != 0)
+						{
+							// 블럭이 부서진 좌표에 dropexp 만큼의 경험치를 떨어트림
+							((ExperienceOrb)event.getBlock().getWorld().spawn(loc, ExperienceOrb.class)).setExperience(dropexp);
+						}
+						
+						// 드랍 아이템을 자연스럽게 블럭이 부서진 좌표에 떨어트림
+						Bukkit.getWorld(worldname).dropItemNaturally(loc, dropitem);
+						
+						// 이벤트가 취소되었으므로 해당 좌표의 블럭을 강제적으로 부
+						Bukkit.getWorld(worldname).getBlockAt(loc).setTypeIdAndData(0, (byte)0, true);
+						
+						// 블럭이 부숴졌으므로 일정 시간 뒤에 리젠시키기 위해 runtask를 만듬
+						Bukkit.getServer().getScheduler().runTaskLater(this, new Runnable()
+						{
+							@SuppressWarnings("deprecation")
+							public void run()
+							{
+								// 일정 시간이 지나면 딱 한번 주어진 장소에 대체블럭을 생성함.
+								Bukkit.getWorld(worldname).getBlockAt(loc).setTypeIdAndData(replaceid, (byte)replacemeta, false);
+							}
+						}, delay);
+						
+					}
+					// 드랍 아이템이 없는 경우
+					else
+					{
+						// 이벤트를 취소함
+						event.setCancelled(true);
+						
+						// 블럭을 자연스럽게 부숨
+						event.getBlock().breakNaturally();
+						
+					}
+					
+					// 만약 손에 든 아이템의 내구도를 깎을 수 있게 했다면
+					if(this.CanDownDura(hand))
+					{
+						// 손에 든 아이템의 내구도 값을 얻어옴
+						short durability = hand.getDurability();
+						
+						// 얼마나 떨어트릴지 문서에서 가져옴
+						int getdowndura = c.getInt("OreGroups." + getbreakblock + "*" + getbreakmeta + ".durability");
+						
+						// 내구도를 설정함.
+						short setdura = (short) (durability + getdowndura);
+						
+						// 손에 든 아이템의 최대 내구도값을 얻어옴
+						short maxdura = hand.getType().getMaxDurability();
+						
+						// 현재 손에 든 아이템의 내구도 값을 얻어옴
+						short getdura = hand.getDurability();
+						
+						// 만약 설정할 내구도가 최대 내구도를 넘는다면
+						if (setdura > maxdura)
+						{
+							//손에 든 아이템을 제거 - 값이 클수록 내구도가 많이 닳은 것이므로
+							p.getInventory().clear(p.getInventory().getHeldItemSlot());	
+						}
+						else
+						{
+							// 내구도를 설정
+							hand.setDurability(setdura);
+						}
+					}
+				}
+				
+			}
+			
+			// 아이템을 드랍시킨다.
+			
+			
+			/*
 			
 			// 월드 이름을 검사. config.yml파일에 등록되어있지 않은 월드라면 작동하지 않음.
 			if(worldlist.contains(worldname))
@@ -273,93 +533,18 @@ public class OreGen extends JavaPlugin implements Listener{
 					{
 						key = key + getbreakblock + "*" + getbreakmeta;
 						ItemStack dropitem = new ItemStack(0);
-						int rnd_per = rnd.nextInt((100) + 1);
-						int[] replaceitem = this.replaceint(replaceto, rnd_per);
-						int replaceid = replaceitem[0];
-						int replacemeta = replaceitem[1];
-						long delay = c.getLong(key + ".delay");
+						
+						
 						List<String> potion = c.getStringList(key + ".potion");
 						List<String> commands = c.getStringList(key + ".commands");
 						List<String> drop_itemMeta = c.getStringList(key + ".drop_itemMeta");
-						int dropexp = c.getInt(key + ".dropexp");
-						event.setExpToDrop(dropexp);
+						int dropexp = c.getInt(key + ".dropexp");						
 						
-						if(!(potion.isEmpty()) && !(potion.get(0).equals("")))
-						{
-							for(String po : potion)
-							{
-								int effectnumber = Integer.parseInt(po.substring(0, po.indexOf(",")));
-								int second = Integer.parseInt(po.substring(po.indexOf(":") +1, po.length()));
-								int level = Integer.parseInt(po.substring(po.indexOf(",") +2, po.indexOf(":")));
-								p.addPotionEffect(new PotionEffect(this.int2PotionEffect(effectnumber), second * 20, level));
-							}
-						}
-						if(!(commands.isEmpty()) && !(commands.get(0).equals("")))
-						{
-							for(String co : commands)
-							{
-								String colorcommand = co.replace("&", "§");
-								String finalcommand = colorcommand.replaceAll("PLAYER", p.getName());
-								Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalcommand);
-							}
-						}
 						
-						if(!(drop_itemMeta.isEmpty()) && !(drop_itemMeta.get(0).equals("")))
-						{ 
-							int drop_per = rnd.nextInt((100) + 1);
-							String dropitemname = this.dropitem(drop_itemMeta, drop_per);
-							key = "item." + dropitemname;
-							
-							int id = item.getInt(key + ".id");
-							int meta = item.getInt(key + ".metadata");
-							int amount = item.getInt(key + ".amount");
-							String name = item.getString(key + ".name");
-							List<String> lore = item.getStringList(key + ".lore");
-							List<String> enchants = item.getStringList(key + ".enchants");
-							
-							dropitem = this.createItem(id, amount, name, lore, meta, enchants);
-
-							
-							event.setCancelled(true);
-							((ExperienceOrb)event.getBlock().getWorld().spawn(loc, ExperienceOrb.class)).setExperience(dropexp);
-							Bukkit.getWorld(worldname).dropItemNaturally(loc, dropitem);
-							Bukkit.getWorld(worldname).getBlockAt(loc).setTypeIdAndData(0, (byte)0, true);
-							Bukkit.getServer().getScheduler().runTaskLater(this, new Runnable()
-							{
-								@SuppressWarnings("deprecation")
-								public void run()
-								{
-									Bukkit.getWorld(worldname).getBlockAt(loc).setTypeIdAndData(replaceid, (byte)replacemeta, false);
-								}
-							}, delay);
-							
-						}
-						else
-						{
-							event.setCancelled(true);
-							event.getBlock().breakNaturally();
-							
-						}
-						if(this.CanDownDura(hand))
-						{
-							short durability = hand.getDurability();
-							int getdowndura = c.getInt("config." + worldname + "." + getbreakblock + ".durability");
-							short setdura = (short) (durability + getdowndura);
-							short maxdura = hand.getType().getMaxDurability();
-							short getdura = hand.getDurability();
-							
-							if (setdura > maxdura)
-							{
-								p.getInventory().clear(p.getInventory().getHeldItemSlot());	
-							}
-							else
-							{
-								hand.setDurability(setdura);
-							}
-						}
 					}
 				}
 			}
+			*/
 		}
 	}
 	@EventHandler
@@ -395,13 +580,15 @@ public class OreGen extends JavaPlugin implements Listener{
 		if(event.getAction().equals(Action.RIGHT_CLICK_BLOCK))
 		{
 			Location loc = event.getClickedBlock().getLocation();
-			if(IsThisMinePlace(loc))
+			String Break_Region = IsThisMinePlace_AndWhere(loc);
+			if(!Break_Region.equals(""))
 			{
 				int blockid = event.getClickedBlock().getTypeId();
 				int macroid = c.getInt("config.macro.id");
 				if(macroid == blockid)
 				{
-					p.getWorld().getBlockAt(loc).setTypeIdAndData(1, (byte)0, false);
+					int targetid = c.getInt("config.macro.id2");
+					p.getWorld().getBlockAt(loc).setTypeIdAndData(targetid, (byte)0, false);
 				}
 			}
 		}
@@ -545,26 +732,37 @@ public class OreGen extends JavaPlugin implements Listener{
 		}
 		return ef;
 	}
-	public void saveDefaultitem()
+	public void saveDefaultOreGroups()
 	{
-		   if (itemfile == null)
+		   if (OreGroupsfile == null)
 		   {
-			   itemfile = new File(getDataFolder(), "item.yml");
+			   OreGroupsfile = new File(getDataFolder(), "OreGroups.yml");
 		   }
-		   if (!itemfile.exists())
+		   if (!OreGroupsfile.exists())
 		   {            
-			   this.saveResource("item.yml", true);
+			   this.saveResource("OreGroups.yml", true);
+		   }
+	}
+	public void saveDefaultitems()
+	{
+		   if (itemsFile == null)
+		   {
+			   itemsFile = new File(getDataFolder(), "items.yml");
+		   }
+		   if (!itemsFile.exists())
+		   {            
+			   this.saveResource("items.yml", true);
 		   }
 	}
 	public void saveTitle()
 	{
 		try 
 		{
-	       item.save(itemfile);
+			OreGroups.save(OreGroupsfile);
 	    }
 		catch (IOException ex)
 		{
-	        getLogger().log(Level.SEVERE, "Could not save config to " + itemfile, ex);
+	        getLogger().log(Level.SEVERE, "Could not save config to " + OreGroupsfile, ex);
 	    }
 	}
 	public void saveDefaultlocations()
@@ -631,13 +829,13 @@ public class OreGen extends JavaPlugin implements Listener{
 		}
 		return b;
 	}
-	public boolean IsThisMinePlace(Location BlockLocation)
+	public String IsThisMinePlace_AndWhere(Location BlockLocation)
 	{
-		boolean return_b = false;
+		String re = "";
 		String pos1 = "";
 		String pos2 = "";
-		
-		
+		String config_world = "";
+		String target_world = "";
 		Set<String> keys = locations.getConfigurationSection("locations").getKeys(false);
 		if(keys.size() >= 1)
 		{
@@ -645,35 +843,77 @@ public class OreGen extends JavaPlugin implements Listener{
 			{
 				pos1 = locations.getString("locations." + key + ".pos1");
 				pos2 = locations.getString("locations." + key + ".pos2");
-				
-				if(LibMain.IsWithin(BlockLocation, pos1, pos2)) 
+				config_world =  locations.getString("locations." + key + ".world");
+				target_world = BlockLocation.getWorld().getName();
+				if(!pos1.equals("") || !pos2.equals(""))
 				{
-					return_b = true;
-					break;
+					if(config_world.equalsIgnoreCase(target_world))
+					{
+						if(LibMain.IsWithin(BlockLocation, pos1, pos2)) 
+						{
+							re = key;
+							break;
+						}
+					}
 				}
 			}
 		}
 
 		
-		return return_b;
+		return re;
 	}
-
+	
+	/*
+	 * 호출되면 locations.yml에 지정되있는 모든 포인트의 블럭을 초기화 하는 코드를 작성.
+	 * 각 반복문은 locations.yml의 각 항목의 initial_ore 항목을 사용하여 config에서 값을
+	 * 얻어와서 해당 값으로 해당 좌표를 초기화
+	*/
 	public void InitializeMine() 
 	{
-		String pos1 = "";
-		String pos2 = "";
+		// 해당하는 월드의 이름을 담을 버퍼를 생성
 		String worldname = "";
+				
+		// 시작 좌표를 저장하기위한 버퍼를 생성
+		String pos1 = "";
+		
+		// 끝 좌표를 저장하기 위한 버퍼를 생성
+		String pos2 = "";
+		
+		// 초기화할 블럭의 정보를 담을 버퍼를 생성
+		String Initial_key = "";
+		
+		// 각각의 좌표를 담을 변수를와 임시변수 생성
 		int x1,y1,z1,x2,y2,z2,temp=0;
 		
+		// 초기화할 블럭의 정보를 담기위한 변수를 선언
+		int id = 0;
+		byte meta = 0;
+		
+		// 각 값을 얻어오기위해 키 집합 생성
 		Set<String> keys = locations.getConfigurationSection("locations").getKeys(false);
 		
+		// locations.yml의 모든 항목에 접근하기위해 반복문 사용
 		for(String key : keys) 
 		{
-			
+			// key 항목의 시작지점을 pos1에 저장
 			pos1 = locations.getString("locations." + key + ".pos1");
+			
+			// key 항목의 끝 지점을 pos2에 저장
 			pos2 = locations.getString("locations." + key + ".pos2");
+			
+			// 좌표가 존재하는 월드 이름을 worldname에 저장
 			worldname = locations.getString("locations." + key + ".world");
 			
+			// 초기화할 블럭의 config 좌표를 저장함.
+			Initial_key = locations.getString("locations." + key + ".initial_ore");
+			
+			// 초기화할 블럭의 id를 얻어옴
+			id = c.getInt("config." + Initial_key + ".id");
+			
+			// 초기화할 블럭의 메타데이타를 얻어와 byte 형으로 형변환
+			meta = (byte)c.getInt("config." + Initial_key + ".meta");
+			
+			// 각 좌표값을 pos1, pos2로부터 얻어냄
 			String[] split1 = pos1.split(",");
 			String[] split2 = pos2.split(",");
 			x1 = Integer.parseInt(split1[0]);
@@ -683,6 +923,7 @@ public class OreGen extends JavaPlugin implements Listener{
 			y2 = Integer.parseInt(split2[1]);
 			z2 = Integer.parseInt(split2[2]);
 			
+			// 좌표 값들의 순서가 바뀌어있을 경우 올바르게 변경
 			if(x1 > x2) 
 			{
 				temp = x1;
@@ -701,14 +942,21 @@ public class OreGen extends JavaPlugin implements Listener{
 				z1 = z2;
 				z2 = temp;
 			}
+			// 광산으로 지정된 모든 x축에 대해서 반복
 			for(int x = x1 ; x <= x2 ; x++)
 			{
+				// 광산으로 지정된 모든 y축에 대해서 반복
 				for(int y = y1 ; y <= y2 ; y++) 
 				{
+					// 광산으로 지정된 모든 z 축에 대해서 반복
 					for(int z = z1 ; z <= z2 ; z++) 
 					{
+						// 블럭을 생성하기위한 Location의 인스턴스를 제작
 						Location newloc = new Location(Bukkit.getWorld(worldname), (double)x, (double)y, (double)z);
-						Bukkit.getWorld(worldname).getBlockAt(newloc).setTypeIdAndData(1, (byte)0, true);
+						
+						// Location 인스턴스를 기반으로 해당 위치에 맞는 블럭을 생성
+						// 블럭 피직스를 호출하지 않기 위해 마지막 인수를 false로 설정
+						Bukkit.getWorld(worldname).getBlockAt(newloc).setTypeIdAndData(id, meta, false);
 					}
 				}
 			}

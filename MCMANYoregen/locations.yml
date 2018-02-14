@@ -1,4 +1,14 @@
 locations:
-  place_1:
-    pos1:
-    pos2:
+  # test라는 이름의 위치입니다. 이곳은 pos1,2를 좌표값으로 갖습니다.
+  # 이 test라는 광산은 world라는 이름의 월드에 있으며
+  # 광물 그룹은 test입니다. 이 test라는 그룹이 OreGroups.yml에 등록되어있여야
+  # 플러그인이 정상적으로 동작합니다.
+  # initial_ore는 config.yml에 등록되어있는 초기블럭을 사용합니다. 이곳에 지정된 블럭으로 
+  # test 광산을 초기화 합니다.
+
+  test:
+    pos1: -78,4,1212
+    pos2: -78,7,1216
+    world: world
+    group: test
+    initial_ore: Initial_SnowMountain

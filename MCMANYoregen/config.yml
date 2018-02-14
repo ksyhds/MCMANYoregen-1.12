@@ -1,50 +1,16 @@
 config:
+  # macro í•­ëª©ì€ ë§¤í¬ë¡œë°©ì§€ë¥¼ ìœ„í•œ ê²ƒìž…ë‹ˆë‹¤. idì— ì í˜€ìžˆëŠ” ë¸”ëŸ­ì„ ê¹¨ë©´ commandê°€ ì‹¤í–‰ë©ë‹ˆë‹¤.
+  # macro í•­ëª©ì— ì í˜€ìžˆëŠ” ì•„ì´í…œì„ ìš°í´ë¦­ í•  ê²½ìš°, ê¸°ë³¸ ì•„ì´í…œì¸ ëŒë¡œ í•´ë‹¹ ë¸”ëŸ­ì´ ë°”ë€Œê²Œ ë©ë‹ˆë‹¤. 
   macro:
     id: 89
+    id2: 55
     command: "balance"
-  # ¿©±â¿¡ µî·ÏµÈ ¾ÆÀÌÅÛÀº creative ¸ðµåÀÇ ÇÃ·¹ÀÌ¾î°¡ ºÎ¼ø ºí·°¿¡µµ °ü¿©ÇÕ´Ï´Ù.
-  #
-  # ¿ùµåº°·Î µû·Î »ç¿ëÀÌ °¡´ÉÇÕ´Ï´Ù.
-  #
-  # ÀÎ½Ä½ÃÅ³ ºí·ÏÀº 'ºí·Ï¹øÈ£*¸ÞÅ¸' Çü½ÄÀ¸·Î ÀÛ¼ºÇÏ½Ã¸é µË´Ï´Ù.
-  #
-  # replaceto Ç×¸ñÀº ºí·°ÀÌ ºÎ¼­Á³À»¶§ ±×ÀÚ¸®¿¡ »ý¼ºµÉ ºí·ÏÀÇ ¸ñ·ÏÀÔ´Ï´Ù.
-  # -'¾ÆÀÌÅÛ:¸ÞÅ¸, È®·ü%' °ú °°ÀÌ »ç¿ëÇÕ´Ï´Ù.
-  #
-  # drop_itemMetaÇ×¸ñÀ» ºóÄ­À¸·Î µÎ½Ã¸é ¿ø·¡ µå¶øÅÛÀÌ µå¶øµË´Ï´Ù.
-  # -'¾ÆÀÌÅÛÀÌ¸§, È®·ü%'¿Í °°ÀÌ »ç¿ëÇÕ´Ï´Ù. ¾ÆÀÌÅÛÀÌ¸§Àº item.yml¿¡ ÀûÀº°ÍÀ» »ç¿ëÇÕ´Ï´Ù.
-  # ÀÌ Ç×¸ñÀÌ ºñ¾îÀÖÀ»½Ã Á¤»óÀÛµ¿ÇÏÁö ¾ÊÀ¸´Ï ²À Ã¤¿öÁÖ¼¼¿ä.
-  #
-  # dropexp Ç×¸ñ¿¡ ÀûÀº Á¤¼ö¸¸Å­ °æÇèÄ¡ ±¸½½ÀÌ µå¶øµË´Ï´Ù.
-  #
-  # commands Ç×¸ñ¿¡ ÀûÀº Ä¿¸Çµå¸¦ ÇØ´ç ºí·°ÀÌ ºÎ¼­Áú¶§ ½ÇÇàÇÕ´Ï´Ù. 
-  # ÄÜ¼ÖÀÌ »ç¿ëÇÏÁö ¸øÇÏ´Â Ä¿¸Çµå´Â »ç¿ë ºÒ°¡´É ÇÕ´Ï´Ù.
-  #
-  # potion Ç×¸ñ¿¡ ÀûÀº ÀÌÆåÆ®µéÀ» ºí·°ÀÌ ºÎ¼­Á³À»¶§ ºÎ¼ø»ç¶÷¿¡°Ô ºÎ¿©ÇÕ´Ï´Ù.
-  # - 'ÀÌÆåÆ®¹øÈ£, ·¹º§:½Ã°£'°ú °°ÀÌ »ç¿ëÇÕ´Ï´Ù.
-  #
-  # macro Ç×¸ñÀº ¸ÅÅ©·Î¹æÁö¸¦ À§ÇÑ °ÍÀÔ´Ï´Ù. id¿¡ ÀûÇôÀÖ´Â ºí·°À» ±ú¸é command°¡ ½ÇÇàµË´Ï´Ù.
-  # macro Ç×¸ñ¿¡ ÀûÇôÀÖ´Â ¾ÆÀÌÅÛÀ» ¿ìÅ¬¸¯ ÇÒ °æ¿ì, ±âº» ¾ÆÀÌÅÛÀÎ µ¹·Î ÇØ´ç ºí·°ÀÌ ¹Ù²î°Ô µË´Ï´Ù. 
-  #
-  # delay Ç×¸ñÀº °¢ ºí·°´ç Àç»ý¼º¿¡ Áö¿¬À» ÁÝ´Ï´Ù. °ø½Ä¿¡¼­´Â ms´ÜÀ§¶ó°í ¾²¿©ÀÖÁö¸¸ »ç½Ç»ó
-  # ±×·¸Áö ¸øÇÏ¹Ç·Î ÀûÀýÈ÷ °ªÀ» Å°¿ö »ç¿ëÇÒ °ÍÀ» ±ÇÀåÇÕ´Ï´Ù. °³¹ßÀÚÀÇ PC¿¡¼­´Â 100ÀÏ¶§ 5ÃÊ°¡·® Áö¿¬µÇ¾ú½À´Ï´Ù.
-  #
-  # durability Ç×¸ñÀº ÇØ´ç ºí·ÏÀÌ ±úÁú¶§¸¶´Ù ¶³¾îÁú ³»±¸µµÀÇ ¼öÀÔ´Ï´Ù.
-  world:
-    1*0:
-      replaceto:
-        - '1:0, 10%'
-        - '3:0, 20%'
-        - '4:0, 30%'
-        - '35:8, 40%'
-      dropexp: 20
-      drop_itemMeta:
-        - 'ex, 100%'
-      commands:
-        - ''
-      potion:
-        - '1, 1:10'
-      delay: 100
-      durability: 1
-  world_nether:
-  world_the_end:
+  Initial_Default:
+    id: 1
+    meta: 0
+  Initial_SnowMountain:
+    id: 79
+    meta: 0
+
+
+
